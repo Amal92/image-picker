@@ -39,6 +39,13 @@
                                     maxWidth:(NSNumber *)maxWidth
                                    maxHeight:(NSNumber *)maxHeight
                                 imageQuality:(NSNumber *)imageQuality {
+  
+  // If we have original data, save it directly
+    if (originalImageData) {
+        return [self saveOriginalImageData:originalImageData];
+    }
+  
+  // Fallback to existing method if no original data
   NSString *suffix = kFLTImagePickerDefaultSuffix;
   FLTImagePickerMIMEType type = kFLTImagePickerMIMETypeDefault;
   NSDictionary *metaData = nil;
@@ -99,6 +106,22 @@
   }
 
   return [self createFile:data suffix:suffix];
+}
+
++ (NSString *)saveOriginalImageData:(NSData *)imageData {
+    NSString *suffix = [self detectImageTypeSuffix:imageData];
+    NSString *path = [self temporaryFilePath:suffix];
+    
+    if ([[NSFileManager defaultManager] createFileAtPath:path contents:imageData attributes:nil]) {
+        return path;
+    }
+    return nil;
+}
+
++ (NSString *)detectImageTypeSuffix:(NSData *)imageData {
+    FLTImagePickerMIMEType type = [FLTImagePickerMetaDataUtil getImageMIMETypeFromImageData:imageData];
+    NSString *suffix = [FLTImagePickerMetaDataUtil imageTypeSuffixFromType:type];
+    return suffix ?: kFLTImagePickerDefaultSuffix;
 }
 
 + (NSString *)saveImageWithMetaData:(NSDictionary *)metaData

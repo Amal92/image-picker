@@ -7,8 +7,10 @@
 #import <PhotosUI/PhotosUI.h>
 
 #import "FLTImagePickerImageUtil.h"
+#import "FLTImagePickerMetaDataUtil.h" 
 
 NS_ASSUME_NONNULL_BEGIN
+
 
 @interface FLTImagePickerPhotoAssetUtil : NSObject
 
@@ -18,6 +20,11 @@ NS_ASSUME_NONNULL_BEGIN
 
 // Saves video to temporary URL. Returns nil on failure;
 + (NSURL *)saveVideoFromURL:(NSURL *)videoURL;
+
++ (NSString *)temporaryFilePath:(NSString *)suffix;
++ (NSString *)saveOriginalImageData:(NSData *)imageData;
++ (NSString *)detectImageTypeSuffix:(NSData *)imageData;
++ (NSString *)imageTypeSuffixFromType:(FLTImagePickerMIMEType)type;
 
 // Saves image with correct meta data and extention copied from the original asset.
 // maxWidth and maxHeight are used only for GIF images.

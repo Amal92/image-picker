@@ -6,6 +6,7 @@
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
 #import "FLTPHPickerSaveImageToPathOperation.h"
+#import "FLTImagePickerPhotoAssetUtil.h"
 
 #import <os/log.h>
 
@@ -86,42 +87,68 @@ API_AVAILABLE(ios(14))
     [self setFinished:YES];
     return;
   }
-  if (@available(iOS 14, *)) {
-    [self setExecuting:YES];
+    if (@available(iOS 14, *)) {
+        [self setExecuting:YES];
 
-    // This supports uniform types that conform to UTTypeImage.
-    // This includes UTTypeHEIC, UTTypeHEIF, UTTypeLivePhoto, UTTypeICO, UTTypeICNS, UTTypePNG
-    // UTTypeGIF, UTTypeJPEG, UTTypeWebP, UTTypeTIFF, UTTypeBMP, UTTypeSVG, UTTypeRAWImage
-    if ([self.result.itemProvider hasItemConformingToTypeIdentifier:UTTypeImage.identifier]) {
-      [self.result.itemProvider
-          loadDataRepresentationForTypeIdentifier:UTTypeImage.identifier
-                                completionHandler:^(NSData *_Nullable data,
-                                                    NSError *_Nullable error) {
-                                  if (data != nil) {
-                                    [self processImage:data];
-                                  } else {
-                                    FlutterError *flutterError =
-                                        [FlutterError errorWithCode:@"invalid_image"
-                                                            message:error.localizedDescription
-                                                            details:error.domain];
-                                    [self completeOperationWithPath:nil error:flutterError];
-                                  }
-                                }];
-    } else if ([self.result.itemProvider
-                   // This supports uniform types that conform to UTTypeMovie.
-                   // This includes kUTTypeVideo, kUTTypeMPEG4, public.3gpp, kUTTypeMPEG,
-                   // public.3gpp2, public.avi, kUTTypeQuickTimeMovie.
-                   hasItemConformingToTypeIdentifier:UTTypeMovie.identifier]) {
-      [self processVideo];
+        // Use file representation for all images to preserve quality
+        if ([self.result.itemProvider hasItemConformingToTypeIdentifier:UTTypeImage.identifier]) {
+            [self.result.itemProvider
+                loadFileRepresentationForTypeIdentifier:UTTypeImage.identifier
+                completionHandler:^(NSURL * _Nullable url, NSError * _Nullable error) {
+                    if (url) {
+                        NSData *data = [NSData dataWithContentsOfURL:url];
+                        if (data) {
+                            [self processOriginalImage:data];
+                            return;
+                        }
+                    }
+                    // Fallback only if file representation fails
+                    [self.result.itemProvider
+                        loadDataRepresentationForTypeIdentifier:UTTypeImage.identifier
+                        completionHandler:^(NSData *_Nullable data, NSError *_Nullable error) {
+                            if (data != nil) {
+                                [self processOriginalImage:data];
+                            } else {
+                                FlutterError *flutterError = 
+                                    [FlutterError errorWithCode:@"invalid_image"
+                                                    message:error.localizedDescription
+                                                    details:error.domain];
+                                [self completeOperationWithPath:nil error:flutterError];
+                            }
+                        }];
+                }];
+        }
     } else {
-      FlutterError *flutterError = [FlutterError errorWithCode:@"invalid_source"
-                                                       message:@"Invalid media source."
-                                                       details:nil];
-      [self completeOperationWithPath:nil error:flutterError];
-    }
-  } else {
     [self setFinished:YES];
   }
+}
+
+// New method to handle original image data
+- (void)processOriginalImage:(NSData *)imageData {
+    NSString *suffix = [self getImageSuffixFromData:imageData];
+    NSString *path = [FLTImagePickerPhotoAssetUtil temporaryFilePath:suffix];
+    
+    if ([[NSFileManager defaultManager] createFileAtPath:path contents:imageData attributes:nil]) {
+        [self completeOperationWithPath:path error:nil];
+    } else {
+        FlutterError *error = [FlutterError errorWithCode:@"file_save_error"
+                                                message:@"Could not save image file"
+                                                details:nil];
+        [self completeOperationWithPath:nil error:error];
+    }
+}
+
+// Helper method to determine file extension from image data
+- (NSString *)getImageSuffixFromData:(NSData *)imageData {
+    uint8_t firstByte;
+    [imageData getBytes:&firstByte length:1];
+    
+    switch (firstByte) {
+        case 0xFF: return @".jpg";  // JPEG
+        case 0x89: return @".png";  // PNG
+        case 0x47: return @".gif";  // GIF
+        default:   return @".jpg";  // Default to JPEG
+    }
 }
 
 /// Processes the image.
