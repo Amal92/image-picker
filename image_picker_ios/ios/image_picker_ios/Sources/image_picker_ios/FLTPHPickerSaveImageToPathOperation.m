@@ -92,23 +92,37 @@ API_AVAILABLE(ios(14))
 
         // Use file representation for all images to preserve quality
         if ([self.result.itemProvider hasItemConformingToTypeIdentifier:UTTypeImage.identifier]) {
+            //NSLog(@"Starting image pick operation");
             [self.result.itemProvider
                 loadFileRepresentationForTypeIdentifier:UTTypeImage.identifier
                 completionHandler:^(NSURL * _Nullable url, NSError * _Nullable error) {
                     if (url) {
+                        // NSLog(@"Got file URL: %@", url);
+                        // NSError *attributesError;
+                        // NSDictionary *attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:url.path error:&attributesError];
+                        // NSLog(@"Original file size: %lld bytes", [attributes fileSize]);
+
                         NSData *data = [NSData dataWithContentsOfURL:url];
+
+                        //NSLog(@"Data size after loading: %lu bytes", (unsigned long)data.length);
+
                         if (data) {
                             [self processOriginalImage:data];
                             return;
                         }
+                    }  else {
+                        //NSLog(@"File URL load failed with error: %@", error);
                     }
                     // Fallback only if file representation fails
+                    //NSLog(@"Falling back to data representation");
                     [self.result.itemProvider
                         loadDataRepresentationForTypeIdentifier:UTTypeImage.identifier
                         completionHandler:^(NSData *_Nullable data, NSError *_Nullable error) {
                             if (data != nil) {
+                                //NSLog(@"Data representation size: %lu bytes", (unsigned long)data.length);
                                 [self processOriginalImage:data];
                             } else {
+                              //NSLog(@"Data representation failed with error: %@", error);
                                 FlutterError *flutterError = 
                                     [FlutterError errorWithCode:@"invalid_image"
                                                     message:error.localizedDescription
@@ -125,12 +139,31 @@ API_AVAILABLE(ios(14))
 
 // New method to handle original image data
 - (void)processOriginalImage:(NSData *)imageData {
+    // NSLog(@"Processing image data of size: %lu bytes", (unsigned long)imageData.length);
+
+    //  // Log the image type from first byte
+    // uint8_t firstByte;
+    // [imageData getBytes:&firstByte length:1];
+    // NSLog(@"First byte: %02X", firstByte);
+
     NSString *suffix = [self getImageSuffixFromData:imageData];
+    //NSLog(@"Detected suffix: %@", suffix);
+
     NSString *path = [FLTImagePickerPhotoAssetUtil temporaryFilePath:suffix];
+    //NSLog(@"Will save to path: %@", path);
     
     if ([[NSFileManager defaultManager] createFileAtPath:path contents:imageData attributes:nil]) {
+        // NSError *attributesError;
+        // NSDictionary *attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:path 
+        //                                                                           error:&attributesError];
+        // if (attributes) {
+        //     NSLog(@"Saved file size: %lld bytes", [attributes fileSize]);
+        // } else {
+        //     NSLog(@"Error getting saved file attributes: %@", attributesError);
+        // }
         [self completeOperationWithPath:path error:nil];
     } else {
+        //NSLog(@"Failed to create file");
         FlutterError *error = [FlutterError errorWithCode:@"file_save_error"
                                                 message:@"Could not save image file"
                                                 details:nil];
