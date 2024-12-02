@@ -1,4 +1,5 @@
-> Changes are only applied to image_picker_ios
+> Changes are only applied to image_picker_ios.
+>
 > Refer to image_picker/pubspec.yaml
 
 ## For Video Picker
