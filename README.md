@@ -30,4 +30,7 @@ The library now support image pick without compressing the source file.
 
 ### Problem
 The picked image is always lower in size, because the library while coping the contents to cache directory treats it as image data using `loadDataRepresentationForTypeIdentifier`
-due to which JPEG compression applies. To prevent this from happening, we are treating the data as file using `loadDataRepresentationForTypeIdentifier` bypassing any compression.
+due to which JPEG compression applies resulting in an altered lower quality image.
+
+### Solution
+To prevent this from happening, we are treating the data as file using `loadDataRepresentationForTypeIdentifier` bypassing any compression.
